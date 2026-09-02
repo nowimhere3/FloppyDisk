@@ -338,6 +338,37 @@ def test_main_output_failure_exits_one(discover: Mock, tmp_path: Path) -> None:
     ) == 1
 
 
+@pytest.mark.parametrize(
+    "collision",
+    ["out-diagnostics", "targets-out", "targets-diagnostics"],
+)
+@patch("floppydisk.cli.discover_target")
+def test_main_rejects_path_collisions_without_discovery_or_input_damage(
+    discover: Mock, collision: str, tmp_path: Path
+) -> None:
+    targets = write_targets(tmp_path, "https://private.example/gallery\n")
+    original_targets = targets.read_bytes()
+    output, diagnostics = paths(tmp_path)
+
+    if collision == "out-diagnostics":
+        output = diagnostics
+    elif collision == "targets-out":
+        output = targets
+    else:
+        diagnostics = targets
+
+    code = main(
+        ["--targets", str(targets), "--out", str(output), "--diagnostics", str(diagnostics)],
+        environ={},
+    )
+
+    assert code == 1
+    discover.assert_not_called()
+    assert targets.read_bytes() == original_targets
+    for candidate in {output, diagnostics} - {targets}:
+        assert not candidate.exists()
+
+
 @patch("floppydisk.cli.discover_target", side_effect=FileNotFoundError("gallery-dl"))
 def test_main_missing_gallery_dl_is_fatal_without_url_leak(
     discover: Mock, tmp_path: Path, capsys: pytest.CaptureFixture[str]

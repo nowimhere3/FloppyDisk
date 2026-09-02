@@ -184,8 +184,13 @@ def run_pipeline(
 ) -> PipelineCounts:
     """Run the offline-testable pipeline using the frozen discovery seam."""
 
-    if output_path.resolve() == diagnostics_path.resolve():
-        raise ValueError("output and diagnostics paths must be different")
+    resolved_paths = {
+        targets_path.resolve(),
+        output_path.resolve(),
+        diagnostics_path.resolve(),
+    }
+    if len(resolved_paths) != 3:
+        raise ValueError("targets, output, and diagnostics paths must be different")
 
     with targets_path.open("r", encoding="utf-8") as handle:
         parsed = parse_targets(handle)
