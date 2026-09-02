@@ -21,6 +21,9 @@ IMAGE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "gif", "webp", "avif"})
 
 
 def _http_url_path(url: str) -> str | None:
+    if any(character in url for character in "\n\r\t"):
+        return None
+
     parsed = urlsplit(url)
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.netloc:
         return None

@@ -87,10 +87,23 @@ def test_pseudo_schemes_are_rejected(url: str) -> None:
     assert not is_image_url(url, "jpg")
 
 
-def test_text_payload_cannot_inject_output_lines() -> None:
+def test_text_pseudo_scheme_with_newline_is_rejected() -> None:
     payload = "text:caption\nhttps://attacker.example/injected.jpg"
 
     assert filter_image_urls([(payload, "jpg")]) == []
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/harmless\nhttps://attacker.example/injected.jpg",
+        "https://example.com/a\rb.jpg",
+        "https://example.com/a\tb.jpg",
+    ],
+    ids=["newline", "carriage-return", "tab"],
+)
+def test_http_urls_with_control_characters_are_rejected(url: str) -> None:
+    assert filter_image_urls([(url, None)]) == []
 
 
 def test_one_six_member_allowlist_constant_governs_filtering() -> None:
