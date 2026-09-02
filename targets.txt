@@ -1,0 +1,10 @@
+# Small, public, anonymous Phase 0 hosted-acceptance set.
+# Direct image: straightforward supported discovery path.
+https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png
+
+# Wikimedia file page: representative extractor-backed page.
+https://commons.wikimedia.org/wiki/File:PNG_transparency_demonstration_1.png
+
+# Known unsupported target: proves target-level failure containment.
+https://example.com/not-a-gallery
+
