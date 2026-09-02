@@ -1,0 +1,6 @@
+[
+  [3, "https://images.example/media/abc?format=jpg", {"extension": "jpg"}],
+  [3, "https://images.example/extensionless", {"extension": ""}],
+  [3, "ytdl:https://video.example/watch/1", {"extension": "mp4"}],
+  [3, "text:caption payload", {"extension": null}]
+]

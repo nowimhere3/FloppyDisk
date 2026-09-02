@@ -1,0 +1,29 @@
+[
+  [
+    2,
+    {
+      "category": "directlink",
+      "domain": "cdn.example.com",
+      "extension": "jpg",
+      "filename": "photo",
+      "fragment": null,
+      "path": "",
+      "query": "token=fixture",
+      "subcategory": "example.com"
+    }
+  ],
+  [
+    3,
+    "https://cdn.example.com/photo.jpg?token=fixture",
+    {
+      "category": "directlink",
+      "domain": "cdn.example.com",
+      "extension": "jpg",
+      "filename": "photo",
+      "fragment": null,
+      "path": "",
+      "query": "token=fixture",
+      "subcategory": "example.com"
+    }
+  ]
+]

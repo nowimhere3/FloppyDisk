@@ -1,0 +1,1 @@
+[gallery-dl][error] Unsupported URL 'https://unsupported.example/'
