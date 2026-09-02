@@ -1,0 +1,4 @@
+[
+  [6, "https://example.com/queued/one", {"_extractor": "ExampleExtractor"}],
+  [6, "https://example.com/queued/two", {"_extractor": "ExampleExtractor"}]
+]

@@ -1,0 +1,4 @@
+[
+  [3, "https://cdn.example.com/surviving.jpg", {"extension": "jpg"}],
+  [-1, {"error": "HttpError", "message": "404 Not Found"}]
+]

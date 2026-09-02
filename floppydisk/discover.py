@@ -10,6 +10,8 @@ from typing import Literal
 #
 # Phase 1-1 targeted local Windows execution. Phase 1-2 moved execution to
 # GitHub-hosted Actions, while this isolated discovery seam survived unchanged.
+# Phase 1-9 then disproved the assumption that -j extraction failures use a
+# nonzero exit: DataJob emits type -1 error records while returning zero.
 #
 # BREADCRUMBS - IS
 #
@@ -20,7 +22,9 @@ from typing import Literal
 # through -i, which interprets configuration-like input. Stderr is captured,
 # never printed, because it can contain URLs in retained CI logs. gallery-dl
 # remains an external subprocess; importing or vendoring it would materially
-# change both this architecture and its licensing analysis.
+# change both this architecture and its licensing analysis. DataJob error
+# records are inspected because exit zero does not prove success, and unresolved
+# plain -j Queue records are counted rather than mistaken for empty output.
 #
 # BREADCRUMBS - WILL BE
 #
@@ -47,6 +51,14 @@ class DiscoveryRecord:
 
 
 @dataclass(frozen=True)
+class DiscoveryError:
+    """Plain extractor failure details from a DataJob error record."""
+
+    name: str
+    message: str
+
+
+@dataclass(frozen=True)
 class DiscoveryResult:
     """Contained outcome of one target's discovery invocation."""
 
@@ -54,6 +66,8 @@ class DiscoveryResult:
     records: tuple[DiscoveryRecord, ...]
     stderr: str
     returncode: int | None
+    errors: tuple[DiscoveryError, ...] = ()
+    queued: int = 0
 
     @property
     def ok(self) -> bool:
@@ -63,20 +77,36 @@ class DiscoveryResult:
 def _failure_status(returncode: int) -> DiscoveryStatus:
     if returncode == 64:
         return "unsupported"
-    if returncode == 4:
-        return "extraction-error"
     return "invocation-error"
 
 
-def _parse_records(stdout: str) -> tuple[DiscoveryRecord, ...]:
+def _parse_records(
+    stdout: str,
+) -> tuple[tuple[DiscoveryRecord, ...], tuple[DiscoveryError, ...], int]:
     payload = json.loads(stdout)
     if not isinstance(payload, list):
         raise ValueError("gallery-dl output must be a JSON array")
 
     records: list[DiscoveryRecord] = []
+    errors: list[DiscoveryError] = []
+    queued = 0
     for item in payload:
         if not isinstance(item, list) or not item:
             raise ValueError("gallery-dl output contains an invalid record")
+        if item[0] == -1:
+            if len(item) < 2 or not isinstance(item[1], dict):
+                raise ValueError("gallery-dl DataJob error record has an invalid shape")
+            name = item[1].get("error")
+            message = item[1].get("message")
+            if not isinstance(name, str) or not isinstance(message, str):
+                raise ValueError("gallery-dl DataJob error details are invalid")
+            errors.append(DiscoveryError(name, message))
+            continue
+        if item[0] == 6:
+            if len(item) < 3 or not isinstance(item[1], str) or not isinstance(item[2], dict):
+                raise ValueError("gallery-dl Message.Queue record has an invalid shape")
+            queued += 1
+            continue
         if item[0] != 3:
             continue
         if len(item) < 3 or not isinstance(item[1], str) or not isinstance(item[2], dict):
@@ -90,7 +120,7 @@ def _parse_records(stdout: str) -> tuple[DiscoveryRecord, ...]:
             )
         )
 
-    return tuple(records)
+    return tuple(records), tuple(errors), queued
 
 
 def discover_target(target: str, *, timeout: float) -> DiscoveryResult:
@@ -123,8 +153,16 @@ def discover_target(target: str, *, timeout: float) -> DiscoveryResult:
         return DiscoveryResult("ok", (), completed.stderr, completed.returncode)
 
     try:
-        records = _parse_records(completed.stdout)
+        records, errors, queued = _parse_records(completed.stdout)
     except (json.JSONDecodeError, ValueError, TypeError):
         return DiscoveryResult("bad-json", (), completed.stderr, completed.returncode)
 
-    return DiscoveryResult("ok", records, completed.stderr, completed.returncode)
+    status: DiscoveryStatus = "extraction-error" if errors else "ok"
+    return DiscoveryResult(
+        status,
+        records,
+        completed.stderr,
+        completed.returncode,
+        errors=errors,
+        queued=queued,
+    )

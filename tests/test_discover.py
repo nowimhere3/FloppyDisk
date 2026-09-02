@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import subprocess
 from unittest.mock import Mock, patch
 
@@ -89,8 +90,8 @@ def test_structured_records_tolerate_metadata_empty_and_pseudo_urls(run: Mock) -
     ("returncode", "expected_status", "fixture"),
     [
         (64, "unsupported", "unsupported-stderr.txt"),
-        (4, "extraction-error", "extraction-error-stderr.txt"),
-        (8, "invocation-error", "extraction-error-stderr.txt"),
+        (4, "invocation-error", "unsupported-stderr.txt"),
+        (8, "invocation-error", "unsupported-stderr.txt"),
     ],
 )
 @patch("floppydisk.discover.subprocess.run")
@@ -112,6 +113,66 @@ def test_target_failures_are_contained_and_stderr_captured(
     assert result.stderr == stderr
     assert result.returncode == returncode
     assert capsys.readouterr() == ("", "")
+
+
+@patch("floppydisk.discover.subprocess.run")
+def test_datajob_error_record_wins_over_exit_zero(run: Mock) -> None:
+    run.return_value = completed(stdout=fixture_text("datajob-error.json"))
+
+    result = discover_target("https://example.com/gallery", timeout=10)
+
+    assert not result.ok
+    assert result.status == "extraction-error"
+    assert [(error.name, error.message) for error in result.errors] == [
+        ("HttpError", "404 Not Found")
+    ]
+    assert result.records == ()
+
+
+@patch("floppydisk.discover.subprocess.run")
+def test_datajob_error_wins_while_valid_url_records_survive(run: Mock) -> None:
+    run.return_value = completed(stdout=fixture_text("mixed-error-url.json"))
+
+    result = discover_target("https://example.com/gallery", timeout=10)
+
+    assert not result.ok
+    assert result.status == "extraction-error"
+    assert [(error.name, error.message) for error in result.errors] == [
+        ("HttpError", "404 Not Found")
+    ]
+    assert result.records == (
+        DiscoveryRecord("https://cdn.example.com/surviving.jpg", "jpg"),
+    )
+
+
+@patch("floppydisk.discover.subprocess.run")
+def test_one_queue_record_is_visible_without_resolution(run: Mock) -> None:
+    payload = json.loads(fixture_text("queue-records.json"))
+    run.return_value = completed(stdout=json.dumps(payload[:1]))
+
+    result = discover_target("https://example.com/profile", timeout=10)
+
+    assert result.ok
+    assert result.records == ()
+    assert result.queued == 1
+    assert run.call_args.args[0] == [
+        "gallery-dl", "-j", "--", "https://example.com/profile"
+    ]
+    assert "-J" not in run.call_args.args[0]
+
+
+@patch("floppydisk.discover.subprocess.run")
+def test_multiple_queue_records_are_distinct_from_empty_output(run: Mock) -> None:
+    run.return_value = completed(stdout=fixture_text("queue-records.json"))
+
+    queued = discover_target("https://example.com/profile", timeout=10)
+    run.return_value = completed(stdout=fixture_text("empty.txt"))
+    empty = discover_target("https://example.com/empty", timeout=10)
+
+    assert queued.ok and empty.ok
+    assert queued.records == empty.records == ()
+    assert queued.queued == 2
+    assert empty.queued == 0
 
 
 @patch("floppydisk.discover.subprocess.run")
