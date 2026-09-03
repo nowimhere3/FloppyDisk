@@ -223,3 +223,18 @@ It never logs authorization, secret values, request headers, request bodies, or 
 The diagnostic Worker deployed successfully at the existing URL as version `2f811fbe-556c-4eb2-b27b-c0ef7c2ca575`. No second `POST /run` was made. A second protected request is now genuinely required while `wrangler tail` is active because GitHub's upstream response exists only during that request. Human authorization is required before consuming that request.
 
 Stage 2A remains **STOP**. Root cause and exact upstream status remain unproven; no PAT or Cloudflare secret change is justified by current evidence. No workflow, frozen Python, visibility, or Stage 2B change occurred.
+
+---
+
+# Authorized Diagnostic Request Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 9:21:39 PM MDT
+Location: Calgary, Alberta
+
+With `wrangler tail` connected to diagnostic Worker version `2f811fbe-556c-4eb2-b27b-c0ef7c2ca575`, exactly one additional protected `POST /run` was issued. The Worker returned **HTTP 401** at its development gate. The request therefore did not reach `github.js`, made no GitHub dispatch request, and produced no upstream GitHub status, request ID, or sanitized GitHub error.
+
+Post-request checks confirmed that all three Cloudflare secret binding names remain configured and the Windows user environment still contains a non-empty development-key value. Values were not read into output, printed, logged, compared in output, or changed. The available evidence proves a mismatch between the request's local development-key value and the deployed `FLOPPYDISK_DEV_KEY` value, but Cloudflare's write-only secret model prevents determining which side is stale without a human-controlled reconciliation. It does not establish the cause of the original GitHub-side 502.
+
+No further request was made. The original upstream GitHub HTTP status, error, request ID, and dispatch root cause remain unavailable. No bridge correction, PAT correction, or GitHub API correction is justified by this invocation. Before another diagnostic retry can be considered, the human must reconcile the local and deployed development-gate values without sharing either value in chat; any retry requires separate explicit authorization.
+
+Stage 2A remains **STOP**. No Stage 2B, workflow, frozen Python, repository visibility, or secret rotation change was performed by Codex.
