@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createWorker } from "../src/index.js";
+import { createWorker, encodeUtf8Base64 } from "../src/index.js";
 import { verifyCapability } from "../src/capability.js";
 import { GitHubDispatchError } from "../src/github.js";
 
@@ -10,9 +10,15 @@ const ENV = {
   FLOPPYDISK_DEV_KEY: "test-only development gate",
 };
 
-function request(key) {
-  const headers = key === undefined ? {} : { "X-FloppyDisk-Dev-Key": key };
-  return new Request("https://worker.example/run", { method: "POST", headers });
+function request(key, body = { targets: "https://example.test/image\n" }, contentType = "application/json") {
+  const headers = {};
+  if (key !== undefined) headers["X-FloppyDisk-Dev-Key"] = key;
+  if (contentType !== undefined) headers["Content-Type"] = contentType;
+  return new Request("https://worker.example/run", {
+    method: "POST",
+    headers,
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
 }
 
 test("POST /run rejects a missing development key", async () => {
@@ -30,16 +36,52 @@ test("POST /run rejects a wrong development key without dispatching", async () =
 
 test("correct key dispatches server-side and returns only the capability contract", async () => {
   let receivedToken;
-  const worker = createWorker({ dispatch: async token => { receivedToken = token; return "424242"; } });
-  const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY), ENV);
+  let receivedTargets;
+  const targets = "https://例え.test/画像\n# café ☕\r\n";
+  const worker = createWorker({ dispatch: async (token, targetsBase64) => {
+    receivedToken = token;
+    receivedTargets = targetsBase64;
+    return "424242";
+  } });
+  const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY, { targets }), ENV);
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(receivedToken, ENV.GITHUB_TOKEN);
+  assert.equal(new TextDecoder().decode(Uint8Array.from(atob(receivedTargets), c => c.charCodeAt(0))), targets);
   assert.deepEqual(Object.keys(body).sort(), ["expiresAt", "jobToken"]);
   assert.equal(JSON.stringify(body).includes(ENV.GITHUB_TOKEN), false);
   assert.equal("runId" in body, false);
   assert.equal(JSON.stringify(body).includes("github.com"), false);
   assert.equal((await verifyCapability(body.jobToken, ENV.FLOPPYDISK_CAPABILITY_SECRET)).runId, "424242");
+});
+
+test("UTF-8 target text round-trips through Base64 exactly", () => {
+  const targets = "first\r\n日本語 😀\nlast line without newline";
+  const decoded = new TextDecoder().decode(Uint8Array.from(atob(encodeUtf8Base64(targets)), c => c.charCodeAt(0)));
+  assert.equal(decoded, targets);
+});
+
+test("missing or malformed JSON input fails safely without dispatch", async () => {
+  let calls = 0;
+  const worker = createWorker({ dispatch: async () => { calls += 1; } });
+  for (const candidate of [
+    request(ENV.FLOPPYDISK_DEV_KEY, "{"),
+    request(ENV.FLOPPYDISK_DEV_KEY, {}),
+    request(ENV.FLOPPYDISK_DEV_KEY, { targets: 42 }),
+  ]) {
+    const response = await worker.fetch(candidate, ENV);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "request failed" });
+  }
+  assert.equal(calls, 0);
+});
+
+test("POST /run requires application/json after the development gate", async () => {
+  const response = await createWorker().fetch(
+    request(ENV.FLOPPYDISK_DEV_KEY, "sensitive raw target", "text/plain"), ENV,
+  );
+  assert.equal(response.status, 415);
+  assert.equal((await response.text()).includes("sensitive raw target"), false);
 });
 
 test("raw GitHub failures and stack traces are not returned", async () => {
@@ -59,6 +101,7 @@ test("raw GitHub failures and stack traces are not returned", async () => {
       category: "Resource not accessible",
     }]]);
     assert.equal(JSON.stringify(diagnostics).includes(ENV.GITHUB_TOKEN), false);
+    assert.equal(JSON.stringify(diagnostics).includes("targets_b64"), false);
   } finally {
     console.error = originalError;
   }

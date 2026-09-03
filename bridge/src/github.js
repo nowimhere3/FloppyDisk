@@ -1,7 +1,7 @@
 const DISPATCH_URL =
   "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/workflows/extract-links.yml/dispatches";
 
-export async function dispatchWorkflow(githubToken, fetchImpl = fetch) {
+export async function dispatchWorkflow(githubToken, targetsBase64, fetchImpl = fetch) {
   const response = await fetchImpl(DISPATCH_URL, {
     method: "POST",
     headers: {
@@ -11,14 +11,18 @@ export async function dispatchWorkflow(githubToken, fetchImpl = fetch) {
       "User-Agent": "FloppyDisk-Trigger-Bridge",
       "X-GitHub-Api-Version": "2026-03-10",
     },
-    body: JSON.stringify({ ref: "main", return_run_details: true }),
+    body: JSON.stringify({
+      ref: "main",
+      return_run_details: true,
+      inputs: { targets_b64: targetsBase64 },
+    }),
   });
 
   if (!response.ok) {
     throw new GitHubDispatchError(
       response.status,
       response.headers.get("x-github-request-id"),
-      await sanitizedGitHubMessage(response),
+      sanitizedGitHubCategory(response.status),
     );
   }
 
@@ -44,12 +48,11 @@ export class GitHubDispatchError extends Error {
   }
 }
 
-async function sanitizedGitHubMessage(response) {
-  try {
-    const body = await response.json();
-    if (typeof body?.message !== "string") return "github error";
-    return body.message.replace(/https?:\/\/\S+/gi, "[url removed]").slice(0, 160);
-  } catch {
-    return "github error";
-  }
+function sanitizedGitHubCategory(status) {
+  if (status === 401) return "github authentication failed";
+  if (status === 403) return "github access denied";
+  if (status === 404) return "github resource not found";
+  if (status === 422) return "github validation failed";
+  if (status >= 500) return "github server error";
+  return "github request failed";
 }

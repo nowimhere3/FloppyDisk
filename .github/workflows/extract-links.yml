@@ -3,6 +3,11 @@ name: Extract image links
 
 on:
   workflow_dispatch:
+    inputs:
+      targets_b64:
+        description: Base64-encoded UTF-8 target text
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +25,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Materialize submitted targets
+        env:
+          TARGETS_B64: ${{ inputs.targets_b64 }}
+        run: printf '%s' "$TARGETS_B64" | base64 -d > targets.txt
 
       # Keep the verified discovery engine exact and external to FloppyDisk.
       - name: Install pinned gallery-dl

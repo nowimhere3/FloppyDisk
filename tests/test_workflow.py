@@ -48,6 +48,40 @@ def test_workflow_invokes_frozen_cli_with_distinct_paths():
     assert len({"targets.txt", "links.txt", "diagnostics.txt"}) == 3
 
 
+def test_workflow_accepts_and_safely_materializes_base64_targets():
+    text = workflow_text()
+
+    assert re.search(r"(?m)^      targets_b64:\s*$", text)
+    assert re.search(r"(?m)^        required: true\s*$", text)
+    assert re.search(
+        r'(?ms)^      - name: Materialize submitted targets\s+env:\s+TARGETS_B64: '
+        r'\$\{\{ inputs\.targets_b64 \}\}\s+run: printf \'%s\' "\$TARGETS_B64" '
+        r'\| base64 -d > targets\.txt$',
+        text,
+    )
+
+
+def test_workflow_never_interpolates_inputs_directly_in_run_steps():
+    text = workflow_text()
+    run_blocks = re.findall(r"(?ms)^        run:.*?(?=^      - name:|\Z)", text)
+
+    assert run_blocks
+    assert all("${{ inputs." not in block for block in run_blocks)
+
+
+def test_frozen_cli_invocation_block_is_byte_identical():
+    text = workflow_text()
+    frozen_block = """      - name: Run frozen FloppyDisk pipeline
+        run: >-
+          python -m floppydisk
+          --targets targets.txt
+          --out links.txt
+          --diagnostics diagnostics.txt
+"""
+
+    assert text.count(frozen_block) == 1
+
+
 def test_workflow_does_not_reimplement_product_logic():
     text = workflow_text()
 

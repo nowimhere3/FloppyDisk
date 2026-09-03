@@ -20,8 +20,21 @@ export function createWorker({ dispatch = dispatchWorkflow } = {}) {
         return jsonError(500);
       }
 
+      if (request.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase() !== "application/json") {
+        return jsonError(415);
+      }
+
+      let targets;
       try {
-        const runId = await dispatch(env.GITHUB_TOKEN);
+        const body = await request.json();
+        if (typeof body?.targets !== "string") return jsonError(400);
+        targets = body.targets;
+      } catch {
+        return jsonError(400);
+      }
+
+      try {
+        const runId = await dispatch(env.GITHUB_TOKEN, encodeUtf8Base64(targets));
         const result = await createCapability(runId, env.FLOPPYDISK_CAPABILITY_SECRET);
         return new Response(JSON.stringify(result), { status: 200, headers: JSON_HEADERS });
       } catch (error) {
@@ -38,6 +51,13 @@ export function createWorker({ dispatch = dispatchWorkflow } = {}) {
       }
     },
   };
+}
+
+export function encodeUtf8Base64(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function jsonError(status) {
