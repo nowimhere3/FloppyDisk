@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dispatchWorkflow, GitHubDispatchError } from "../src/github.js";
+import {
+  deleteResultArtifact,
+  dispatchWorkflow,
+  downloadResultArtifact,
+  getWorkflowRun,
+  GitHubDispatchError,
+} from "../src/github.js";
 
 test("dispatch targets the fixed workflow and keeps the PAT in the server request", async () => {
   const token = "test-only GitHub credential";
@@ -18,6 +24,66 @@ test("dispatch targets the fixed workflow and keeps the PAT in the server reques
   });
   assert.equal(call.options.headers.Authorization, `Bearer ${token}`);
   assert.equal(runId, "987");
+});
+
+test("status lookup returns only normalized state from the fixed run endpoint", async () => {
+  let call;
+  const result = await getWorkflowRun("token", "42", async (url, options) => {
+    call = { url, options };
+    return Response.json({ status: "completed", conclusion: "success", html_url: "private", id: 42 });
+  });
+  assert.equal(call.url, "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/runs/42");
+  assert.equal(call.options.headers.Authorization, "Bearer token");
+  assert.deepEqual(result, { status: "completed", conclusion: "success" });
+});
+
+test("pre-run GitHub states normalize to queued", async () => {
+  for (const status of ["requested", "waiting", "pending", "queued"]) {
+    const result = await getWorkflowRun("token", "42", async () => Response.json({ status }));
+    assert.deepEqual(result, { status: "queued", conclusion: null });
+  }
+});
+
+test("artifact lookup selects exactly floppydisk-results and downloads by internal id", async () => {
+  const calls = [];
+  const result = await downloadResultArtifact("token", "42", async (url) => {
+    calls.push(url);
+    if (url.endsWith("/artifacts?per_page=100")) {
+      return Response.json({ artifacts: [
+        { id: 8, name: "other" },
+        { id: 9, name: "floppydisk-results", expired: false },
+      ] });
+    }
+    return new Response(new Uint8Array([1, 2, 3]));
+  });
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/runs/42/artifacts?per_page=100",
+    "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/artifacts/9/zip",
+  ]);
+  assert.equal(result.artifactId, "9");
+  assert.deepEqual(new Uint8Array(result.zipBytes), new Uint8Array([1, 2, 3]));
+});
+
+test("missing expected artifact fails safely before download", async () => {
+  let calls = 0;
+  await assert.rejects(
+    downloadResultArtifact("token", "42", async () => {
+      calls += 1;
+      return Response.json({ artifacts: [{ id: 8, name: "other" }] });
+    }),
+    /result artifact missing/,
+  );
+  assert.equal(calls, 1);
+});
+
+test("artifact deletion uses only the fixed artifact endpoint", async () => {
+  let call;
+  await deleteResultArtifact("token", "9", async (url, options) => {
+    call = { url, options };
+    return new Response(null, { status: 204 });
+  });
+  assert.equal(call.url, "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/artifacts/9");
+  assert.equal(call.options.method, "DELETE");
 });
 
 test("dispatch refuses a successful response without a usable workflow run id", async () => {

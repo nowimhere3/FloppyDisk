@@ -1,5 +1,8 @@
 const DISPATCH_URL =
   "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/workflows/extract-links.yml/dispatches";
+const RUNS_URL = "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/runs";
+const ARTIFACTS_URL = "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/artifacts";
+const EXPECTED_ARTIFACT = "floppydisk-results";
 
 export async function dispatchWorkflow(githubToken, targetsBase64, fetchImpl = fetch) {
   const response = await fetchImpl(DISPATCH_URL, {
@@ -31,6 +34,60 @@ export async function dispatchWorkflow(githubToken, targetsBase64, fetchImpl = f
     throw new GitHubDispatchError(response.status, response.headers.get("x-github-request-id"), "missing workflow run id");
   }
   return String(details.workflow_run_id);
+}
+
+export async function getWorkflowRun(githubToken, runId, fetchImpl = fetch) {
+  const response = await githubFetch(`${RUNS_URL}/${runId}`, githubToken, {}, fetchImpl);
+  const details = await response.json();
+  const queuedStatuses = new Set(["requested", "waiting", "pending", "queued"]);
+  const completedConclusions = new Set([
+    "action_required", "cancelled", "failure", "neutral", "skipped",
+    "stale", "startup_failure", "success", "timed_out",
+  ]);
+  if (queuedStatuses.has(details?.status)) return { status: "queued", conclusion: null };
+  if (details?.status === "in_progress") return { status: "in_progress", conclusion: null };
+  if (details?.status === "completed") {
+    return {
+      status: "completed",
+      conclusion: completedConclusions.has(details.conclusion) ? details.conclusion : "failure",
+    };
+  }
+  throw new Error("unexpected workflow status");
+}
+
+export async function downloadResultArtifact(githubToken, runId, fetchImpl = fetch) {
+  const listing = await githubFetch(`${RUNS_URL}/${runId}/artifacts?per_page=100`, githubToken, {}, fetchImpl);
+  const body = await listing.json();
+  const artifact = Array.isArray(body?.artifacts)
+    ? body.artifacts.find(item => item?.name === EXPECTED_ARTIFACT && item.expired !== true)
+    : null;
+  if (!isUsableRunId(artifact?.id)) throw new Error("result artifact missing");
+  const download = await githubFetch(`${ARTIFACTS_URL}/${artifact.id}/zip`, githubToken, {}, fetchImpl);
+  return { artifactId: String(artifact.id), zipBytes: await download.arrayBuffer() };
+}
+
+export async function deleteResultArtifact(githubToken, artifactId, fetchImpl = fetch) {
+  await githubFetch(`${ARTIFACTS_URL}/${artifactId}`, githubToken, { method: "DELETE" }, fetchImpl, [204]);
+}
+
+async function githubFetch(url, githubToken, options, fetchImpl, expectedStatuses = [200]) {
+  const response = await fetchImpl(url, {
+    method: options.method ?? "GET",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${githubToken}`,
+      "User-Agent": "FloppyDisk-Trigger-Bridge",
+      "X-GitHub-Api-Version": "2026-03-10",
+    },
+  });
+  if (!expectedStatuses.includes(response.status)) {
+    throw new GitHubDispatchError(
+      response.status,
+      response.headers.get("x-github-request-id"),
+      sanitizedGitHubCategory(response.status),
+    );
+  }
+  return response;
 }
 
 function isUsableRunId(value) {

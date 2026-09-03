@@ -23,7 +23,7 @@ def test_workflow_uses_approved_hosted_runtime():
     text = workflow_text()
 
     assert "runs-on: ubuntu-latest" in text
-    assert "timeout-minutes: 30" in text
+    assert "timeout-minutes: 15" in text
     assert "uses: actions/checkout@v4" in text
     assert "uses: actions/setup-python@v5" in text
     assert 'python-version: "3.12"' in text
@@ -101,6 +101,7 @@ def test_artifact_upload_is_modern_and_evidence_preserving():
     assert "if: always()" in text
     assert "uses: actions/upload-artifact@v4" in text
     assert "name: floppydisk-results" in text
+    assert "retention-days: 1" in text
     assert re.search(r"(?m)^            links\.txt$", text)
     assert re.search(r"(?m)^            diagnostics\.txt$", text)
 

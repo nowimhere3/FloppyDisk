@@ -15,7 +15,7 @@ permissions:
 jobs:
   extract:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -55,4 +55,5 @@ jobs:
             links.txt
             diagnostics.txt
           if-no-files-found: warn
+          retention-days: 1
 

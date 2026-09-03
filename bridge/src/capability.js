@@ -1,11 +1,11 @@
 const VERSION = 1;
-const DEFAULT_TTL_SECONDS = 15 * 60;
+export const CAPABILITY_TTL_SECONDS = 30 * 60;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 export async function createCapability(runId, secret, options = {}) {
   const now = options.now ?? Math.floor(Date.now() / 1000);
-  const ttlSeconds = options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+  const ttlSeconds = options.ttlSeconds ?? CAPABILITY_TTL_SECONDS;
   const payload = { v: VERSION, runId: String(runId), exp: now + ttlSeconds };
   const encodedPayload = toBase64Url(encoder.encode(JSON.stringify(payload)));
   const signature = await sign(encodedPayload, secret);
