@@ -115,3 +115,21 @@ cd bridge
 ```
 
 After those commands succeed, return for one separately authorized Stage 2B hosted acceptance request. Do not begin Stage 2C, 2D, or 2E.
+
+---
+
+# Hosted Acceptance Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 11:24:52 PM MDT
+Location: Calgary, Alberta
+
+Stage 2B passed real hosted acceptance in GitHub Actions run `33718362446` with conclusion **success**. The bridge-submitted target text differed from the repository's committed `targets.txt`, proving that the Stage 2B transport—not the committed starter file—drove the frozen pipeline.
+
+Independently inspected artifact evidence:
+
+- `links.txt` contained exactly one qualifying unique link;
+- diagnostics counted 2 targets, 2 accepted targets, 1 qualifying link, and 1 unique link;
+- line 1 completed with `status=ok`;
+- line 2 completed with `status=unsupported`.
+
+The hosted evidence proves submitted text → Worker UTF-8/Base64 transport → `workflow_dispatch` input → env-indirect `targets.txt` materialization → unchanged frozen FloppyDisk CLI. Stage 2B verdict: **PASS / APPROVED / FROZEN**.
