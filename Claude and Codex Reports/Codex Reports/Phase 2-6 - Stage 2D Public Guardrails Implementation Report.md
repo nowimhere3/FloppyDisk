@@ -127,3 +127,16 @@ cd bridge
 ```
 
 After push/deploy, perform the separately approved hosted guardrail acceptance. Do not begin Stage 2E.
+
+---
+
+# Hosted Acceptance Follow-up
+
+Timestamp: Thursday, September 3, 2026 at 12:00:16 AM MDT
+Location: Calgary, Alberta
+
+Stage 2D passed real hosted acceptance in GitHub Actions run `33720856531` at head `b4c85e7e88c0117887de13c4785f819895f9d343`; the workflow conclusion was **success**.
+
+The anonymous public flow used no development key. `POST /run` returned a signed job capability, status progressed honestly from `queued` through `in_progress` to `completed / success`, and capability-authorized `GET /result` returned HTTP 200 with `Content-Type: text/plain; charset=utf-8` and the expected pure `links.txt` content. Exact-origin CORS admitted `https://nowimhere3.github.io`.
+
+Independent GitHub verification confirmed submitted-target materialization, the frozen FloppyDisk pipeline, and artifact upload all succeeded. Zero artifacts remained after result retrieval. Stage 2D verdict: **PASS / APPROVED / FROZEN**.
