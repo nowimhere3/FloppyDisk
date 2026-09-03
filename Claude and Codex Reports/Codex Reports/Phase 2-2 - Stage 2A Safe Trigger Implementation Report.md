@@ -199,3 +199,27 @@ Under the binding instruction, this is a STOP condition: current hosted behavior
 ## Final Stage 2A Verdict
 
 **STOP** — deployment passed, but the one permitted hosted request returned HTTP 502 and did not produce the required job capability or usable workflow run ID evidence. Architecture review or separately approved diagnostic instrumentation is required before any further hosted request. Do not begin Stage 2B.
+
+---
+
+# Dispatch Diagnostic Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 9:08:45 PM MDT
+Location: Calgary, Alberta
+
+Code inspection and the current GitHub REST documentation confirm that the deployed request uses the required POST endpoint, repository, workflow filename, bearer authorization header, `Accept` header, supported `X-GitHub-Api-Version: 2026-03-10`, and JSON body `{ "ref": "main", "return_run_details": true }`. The workflow exists on `main`, declares `workflow_dispatch`, and requires no inputs.
+
+The first deployed version recorded no upstream response metadata. Cloudflare invocation state and the generic client response cannot retrospectively recover GitHub's status. GitHub CLI was unavailable and no authenticated browser session was connected, so safe metadata checks could not determine whether a run was created.
+
+Diagnostic implementation commit `14d46c5` adds only server-side structured logging for:
+
+- upstream HTTP status;
+- `x-github-request-id`;
+- a URL-stripped, length-limited GitHub message; or
+- a non-GitHub exception category.
+
+It never logs authorization, secret values, request headers, request bodies, or target URLs. The client response remains exactly the non-sensitive `{"error":"request failed"}` on failure. Local bridge tests are **11 passed, 0 failed** and the full Python regression is **96 passed in 0.49s**.
+
+The diagnostic Worker deployed successfully at the existing URL as version `2f811fbe-556c-4eb2-b27b-c0ef7c2ca575`. No second `POST /run` was made. A second protected request is now genuinely required while `wrangler tail` is active because GitHub's upstream response exists only during that request. Human authorization is required before consuming that request.
+
+Stage 2A remains **STOP**. Root cause and exact upstream status remain unproven; no PAT or Cloudflare secret change is justified by current evidence. No workflow, frozen Python, visibility, or Stage 2B change occurred.
