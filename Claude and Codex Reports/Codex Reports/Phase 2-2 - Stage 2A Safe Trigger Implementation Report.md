@@ -266,3 +266,52 @@ The user-scoped development key was again confirmed present without displaying i
 The deployed equality gate is functioning as tested: HTTP 401 proves the header value visible to the request process does not equal the value visible to the deployed Worker binding. The cause of that cross-environment mismatch, and the original GitHub dispatch failure, remain unproven. No speculative fix or additional request was attempted.
 
 Stage 2A remains **STOP**. No bridge, PAT, signing secret, workflow, frozen Python, visibility, or Stage 2B change was made.
+
+---
+
+# Final Hosted Acceptance
+
+Timestamp: Wednesday, September 2, 2026 at 10:16:27 PM MDT
+Location: Calgary, Alberta
+
+After the development gate was successfully reconciled, the Human performed one externally initiated protected `POST /run`. No further request was made by Codex.
+
+Observed client contract:
+
+```text
+HTTP 200
+response fields: expiresAt, jobToken
+jobToken present: true
+expiresAt present: true
+```
+
+The signed capability was decoded locally without printing the token. It contained internal GitHub workflow run ID `33714115213`. The raw run ID, GitHub URLs, repository metadata, GitHub credential, Worker secrets, and raw GitHub response were not returned as client response fields.
+
+ChatGPT independently verified the exact hosted GitHub Actions run with this evidence:
+
+- repository: private `nowimhere3/FloppyDisk`;
+- workflow run ID: `33714115213`;
+- workflow head branch: `main`;
+- workflow head SHA: `904820b1bd2918d25f2e81820c741e2387c82c4d`;
+- job: `extract`;
+- job conclusion: **success**;
+- checkout, Python 3.12 setup, pinned gallery-dl installation, gallery-dl version recording, frozen FloppyDisk pipeline, and artifact upload: **success**;
+- artifact `floppydisk-results`: present, 763 bytes.
+
+This empirically proves the complete Stage 2A path: protected client request → deployed Cloudflare Worker → server-side GitHub authentication → existing workflow dispatch on `main` → usable workflow run ID returned internally → signed FloppyDisk job capability → client receives only `jobToken` and `expiresAt` → hosted workflow succeeds.
+
+Final regressions:
+
+- bridge: **11 passed, 0 failed**;
+- Python: **96 passed in 0.50s**;
+- workflow YAML changes: **none**;
+- files under `floppydisk/` changed: **none**;
+- repository visibility changes: **none; repository remains private**;
+- secret rotation by Codex: **none**;
+- Stage 2B work: **none**.
+
+The original transient HTTP 502 was not assigned a speculative cause. The final acceptance passed without a bridge request-contract, GitHub PAT, GitHub API, workflow, or frozen-engine correction. The temporary development gate remains active.
+
+## Final Verdict
+
+**PASS** — Stage 2A's protected trigger seam and signed capability foundation are locally and empirically proven. **READY FOR CHATGPT + HUMAN REVIEW: YES.** Do not begin Stage 2B without separate authorization.
