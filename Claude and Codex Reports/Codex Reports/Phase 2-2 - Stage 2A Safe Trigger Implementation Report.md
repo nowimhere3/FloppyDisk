@@ -140,3 +140,62 @@ After those four commands succeed, Codex can deploy and perform exactly one real
 # Recommendation
 
 Complete only the four human Wrangler login/secret commands above, then return to Codex for deployment and one hosted acceptance dispatch. Do not begin Stage 2B.
+
+---
+
+# Hosted Acceptance Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 9:01:31 PM MDT
+Location: Calgary, Alberta
+
+This follow-up supersedes the earlier deployment status, verdict, and recommendation while preserving the original implementation record.
+
+## Cloudflare Deployment Evidence
+
+Deployment succeeded without changing any configured secret:
+
+```text
+Worker: floppydisk-trigger-bridge
+URL: https://floppydisk-trigger-bridge.ddmcalorum.workers.dev
+Version ID: 80745858-c3d5-492f-b5f6-6336b6e1c24f
+Upload: 3.95 KiB / gzip: 1.65 KiB
+Startup time: 5 ms
+```
+
+`wrangler secret list` confirmed all three required bindings by name and disclosed no values:
+
+- `GITHUB_TOKEN`
+- `FLOPPYDISK_CAPABILITY_SECRET`
+- `FLOPPYDISK_DEV_KEY`
+
+The temporary development gate remains part of the deployed `POST /run` route. No anonymous fallback was added.
+
+## Single Hosted Request Evidence
+
+Exactly one protected hosted `POST /run` request was made using the development key read directly from the Windows user environment without printing or logging it.
+
+Actual client result:
+
+```text
+HTTP 502
+{"error":"request failed"}
+```
+
+The minimal error response correctly exposed no GitHub credential, GitHub URL, repository metadata, raw GitHub response, stack trace, run ID, or Worker secret. It did not return `jobToken` or `expiresAt` because the server-side operation failed before the success response contract was produced.
+
+No second POST was attempted. GitHub CLI was unavailable on this machine, so an authenticated read-only workflow run listing could not establish whether GitHub rejected dispatch or created a run but returned unusable details. The Worker deliberately catches both GitHub dispatch failure and capability-creation failure behind the same non-sensitive response. Therefore no usable `workflow_run_id`, signed hosted capability, or confirmed GitHub workflow run can be reported.
+
+Under the binding instruction, this is a STOP condition: current hosted behavior did not return a usable workflow run ID through the bridge, and correlation infrastructure must not be invented.
+
+## Follow-up Verification
+
+- Local bridge tests: **10 passed, 0 failed**.
+- Full Python regression from repository root: **96 passed in 0.50s**.
+- Files changed under `floppydisk/`: **none**.
+- Workflow YAML changes: **none**.
+- Stage 2B work: **none**.
+- Repository visibility changes: **none; repository remains private as required**.
+
+## Final Stage 2A Verdict
+
+**STOP** — deployment passed, but the one permitted hosted request returned HTTP 502 and did not produce the required job capability or usable workflow run ID evidence. Architecture review or separately approved diagnostic instrumentation is required before any further hosted request. Do not begin Stage 2B.
