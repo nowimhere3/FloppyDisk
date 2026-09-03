@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#03140a">
+  <title>FloppyDisk — Find direct image links</title>
+  <meta name="description" content="Turn a text file of web pages into direct image links.">
+  <link rel="icon" href="./floppy.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <img src="./floppy.svg" alt="" width="64" height="64">
+      <div><p class="eyebrow">A tiny link finder</p><h1>FloppyDisk</h1></div>
+    </header>
+
+    <section id="drop-zone" class="panel" aria-labelledby="panel-title">
+      <div data-state="empty">
+        <h2 id="panel-title">Turn a list of pages into direct image links.</h2>
+        <p class="lead">Choose a text file with one web address per line.</p>
+        <button id="choose-file" class="primary" type="button">Choose .txt file</button>
+        <p class="drop-hint">or drop it here</p>
+      </div>
+
+      <div data-state="ready" hidden>
+        <p class="state-label">Disk loaded</p>
+        <h2 id="filename" class="filename"></h2>
+        <p id="target-count" class="lead"></p>
+        <button id="start" class="primary" type="button">Find Image Links</button>
+        <button id="change-file" class="secondary" type="button">Choose a different file</button>
+      </div>
+
+      <div data-state="working" hidden>
+        <div class="activity" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h2 id="working-copy">Finding image links…</h2>
+        <p id="elapsed" class="lead">0s elapsed</p>
+        <p class="quiet">You can leave this tab open. We'll keep checking.</p>
+      </div>
+
+      <div data-state="success" hidden>
+        <p class="state-label">Done</p>
+        <h2>Your links are ready.</h2>
+        <button id="download" class="primary" type="button">Download links.txt</button>
+        <button id="another" class="secondary" type="button">Start another</button>
+      </div>
+
+      <div data-state="error" hidden>
+        <p class="state-label error-label">Needs another try</p>
+        <h2 id="error-message">Something went wrong. Try again.</h2>
+        <button id="retry" class="primary" type="button">Try again</button>
+      </div>
+
+      <input id="file-input" class="visually-hidden" type="file" accept=".txt,text/plain">
+    </section>
+
+    <p class="privacy">Your file isn't added to the project. Results are removed after download or expire automatically.</p>
+    <p id="live-status" class="visually-hidden" role="status" aria-live="polite"></p>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
