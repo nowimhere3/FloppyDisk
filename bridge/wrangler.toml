@@ -1,0 +1,6 @@
+name = "floppydisk-trigger-bridge"
+main = "src/index.js"
+compatibility_date = "2026-09-02"
+
+# GITHUB_TOKEN, FLOPPYDISK_CAPABILITY_SECRET, and FLOPPYDISK_DEV_KEY are
+# Worker secrets. Configure them with `wrangler secret put`; never put values here.
