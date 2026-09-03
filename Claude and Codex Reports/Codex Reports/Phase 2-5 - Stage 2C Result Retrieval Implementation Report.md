@@ -140,3 +140,16 @@ cd bridge
 ```
 
 After push/deploy, return for a separately authorized hosted sequence: one protected run, capability-authorized status polling, and one result retrieval. Do not begin Stage 2D or Stage 2E.
+
+---
+
+# Hosted Acceptance Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 11:37:56 PM MDT
+Location: Calgary, Alberta
+
+Stage 2C passed real hosted acceptance in GitHub Actions run `33719374135` at head `f8d66a6ef95ab30aaaed2ed48662ac71394c73e2`; the workflow conclusion was **success**.
+
+The capability-authorized result request returned HTTP 200 with `Content-Type: text/plain; charset=utf-8` and the expected pure `links.txt` content. GitHub was independently checked after retrieval and reported **0 artifacts remaining** for the run.
+
+This proves the intended lifecycle: verified capability → successful run → exact `floppydisk-results` artifact → only `links.txt` extracted → artifact deleted → pure text response. Stage 2C verdict: **PASS / APPROVED / FROZEN**.
