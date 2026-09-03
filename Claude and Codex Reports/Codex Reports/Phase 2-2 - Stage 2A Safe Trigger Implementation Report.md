@@ -238,3 +238,18 @@ Post-request checks confirmed that all three Cloudflare secret binding names rem
 No further request was made. The original upstream GitHub HTTP status, error, request ID, and dispatch root cause remain unavailable. No bridge correction, PAT correction, or GitHub API correction is justified by this invocation. Before another diagnostic retry can be considered, the human must reconcile the local and deployed development-gate values without sharing either value in chat; any retry requires separate explicit authorization.
 
 Stage 2A remains **STOP**. No Stage 2B, workflow, frozen Python, repository visibility, or secret rotation change was performed by Codex.
+
+---
+
+# Reconciled-Gate Diagnostic Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 9:45:00 PM MDT
+Location: Calgary, Alberta
+
+The Windows user-scoped `FLOPPYDISK_DEV_KEY` was confirmed present without outputting its value. Live logging was attached to diagnostic Worker version `2f811fbe-556c-4eb2-b27b-c0ef7c2ca575`, then exactly one authorized protected request was issued.
+
+The client again received **HTTP 401** from the Worker's development gate. Live logging recorded a normal `POST /run` Worker invocation and no `github_dispatch_failed` event. Therefore `github.js` was not entered, GitHub was not contacted, and no upstream GitHub status, request ID, error, workflow run ID, or capability exists for this attempt.
+
+The proven cause of this attempt is still a mismatch between the header value visible to the Codex execution process and the deployed development-gate secret. Because the Cloudflare secret is write-only, the reason for that mismatch cannot be established by comparing values, and no speculative code or configuration change was applied. The original GitHub dispatch failure remains undiagnosed.
+
+Local bridge tests remain **11 passed, 0 failed**. Stage 2A remains **STOP**. Another corrective diagnostic attempt would require resolving the execution-context/deployed-key mismatch and receiving separate authorization. No Stage 2B work began.
