@@ -253,3 +253,16 @@ The client again received **HTTP 401** from the Worker's development gate. Live 
 The proven cause of this attempt is still a mismatch between the header value visible to the Codex execution process and the deployed development-gate secret. Because the Cloudflare secret is write-only, the reason for that mismatch cannot be established by comparing values, and no speculative code or configuration change was applied. The original GitHub dispatch failure remains undiagnosed.
 
 Local bridge tests remain **11 passed, 0 failed**. Stage 2A remains **STOP**. Another corrective diagnostic attempt would require resolving the execution-context/deployed-key mismatch and receiving separate authorization. No Stage 2B work began.
+
+---
+
+# Second Reconciled-Gate Diagnostic Follow-up
+
+Timestamp: Wednesday, September 2, 2026 at 9:52:25 PM MDT
+Location: Calgary, Alberta
+
+The user-scoped development key was again confirmed present without displaying it. After live Worker logging was attached, exactly one newly authorized protected `POST /run` was issued. The client received **HTTP 401** from the development gate. No GitHub diagnostic event was emitted; therefore GitHub was not contacted and there is no upstream GitHub status, request ID, error, workflow run ID, or job capability for this attempt.
+
+The deployed equality gate is functioning as tested: HTTP 401 proves the header value visible to the request process does not equal the value visible to the deployed Worker binding. The cause of that cross-environment mismatch, and the original GitHub dispatch failure, remain unproven. No speculative fix or additional request was attempted.
+
+Stage 2A remains **STOP**. No bridge, PAT, signing secret, workflow, frozen Python, visibility, or Stage 2B change was made.
