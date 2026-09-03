@@ -8,12 +8,14 @@ const ENV = {
   GITHUB_TOKEN: "test-only server GitHub token",
   FLOPPYDISK_CAPABILITY_SECRET: "test-only signing secret",
   FLOPPYDISK_DEV_KEY: "test-only development gate",
+  SUBMISSION_RATE_LIMITER: { limit: async () => ({ success: true }) },
 };
 
 function request(key, body = { targets: "https://example.test/image\n" }, contentType = "application/json") {
   const headers = {};
   if (key !== undefined) headers["X-FloppyDisk-Dev-Key"] = key;
   if (contentType !== undefined) headers["Content-Type"] = contentType;
+  headers["CF-Connecting-IP"] = "203.0.113.10";
   return new Request("https://worker.example/run", {
     method: "POST",
     headers,
@@ -21,20 +23,21 @@ function request(key, body = { targets: "https://example.test/image\n" }, conten
   });
 }
 
-test("POST /run rejects a missing development key", async () => {
-  const response = await createWorker().fetch(request(), ENV);
-  assert.equal(response.status, 401);
+test("POST /run no longer requires the temporary development key", async () => {
+  const worker = createWorker({ dispatch: async () => "123", countInFlight: async () => 0 });
+  const response = await worker.fetch(request(), ENV);
+  assert.equal(response.status, 200);
 });
 
-test("POST /run rejects a wrong development key without dispatching", async () => {
-  let called = false;
-  const worker = createWorker({ dispatch: async () => { called = true; } });
+test("development key cannot bypass public admission checks", async () => {
+  let dispatched = false;
+  const worker = createWorker({ dispatch: async () => { dispatched = true; }, countInFlight: async () => 3 });
   const response = await worker.fetch(request("wrong"), ENV);
-  assert.equal(response.status, 401);
-  assert.equal(called, false);
+  assert.equal(response.status, 503);
+  assert.equal(dispatched, false);
 });
 
-test("correct key dispatches server-side and returns only the capability contract", async () => {
+test("anonymous admitted request dispatches server-side and returns only the capability contract", async () => {
   let receivedToken;
   let receivedTargets;
   const targets = "https://例え.test/画像\n# café ☕\r\n";
@@ -42,7 +45,7 @@ test("correct key dispatches server-side and returns only the capability contrac
     receivedToken = token;
     receivedTargets = targetsBase64;
     return "424242";
-  } });
+  }, countInFlight: async () => 0 });
   const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY, { targets }), ENV);
   const body = await response.json();
   assert.equal(response.status, 200);
@@ -71,12 +74,12 @@ test("missing or malformed JSON input fails safely without dispatch", async () =
   ]) {
     const response = await worker.fetch(candidate, ENV);
     assert.equal(response.status, 400);
-    assert.deepEqual(await response.json(), { error: "request failed" });
+    assert.deepEqual(await response.json(), { error: "Please choose a valid text file." });
   }
   assert.equal(calls, 0);
 });
 
-test("POST /run requires application/json after the development gate", async () => {
+test("POST /run requires application/json before public admission", async () => {
   const response = await createWorker().fetch(
     request(ENV.FLOPPYDISK_DEV_KEY, "sensitive raw target", "text/plain"), ENV,
   );
@@ -91,11 +94,12 @@ test("raw GitHub failures and stack traces are not returned", async () => {
   try {
     const worker = createWorker({
       dispatch: async () => { throw new GitHubDispatchError(403, "SAFE456", "Resource not accessible"); },
+      countInFlight: async () => 0,
     });
     const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY), ENV);
     assert.equal(response.status, 502);
     assert.deepEqual(await response.json(), { error: "request failed" });
-    assert.deepEqual(diagnostics, [["github_dispatch_failed", {
+    assert.deepEqual(diagnostics, [["github_operation_failed", {
       upstreamStatus: 403,
       requestId: "SAFE456",
       category: "Resource not accessible",

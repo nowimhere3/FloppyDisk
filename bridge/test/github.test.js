@@ -6,6 +6,7 @@ import {
   downloadResultArtifact,
   getWorkflowRun,
   GitHubDispatchError,
+  countInFlightRuns,
 } from "../src/github.js";
 
 test("dispatch targets the fixed workflow and keeps the PAT in the server request", async () => {
@@ -84,6 +85,19 @@ test("artifact deletion uses only the fixed artifact endpoint", async () => {
   });
   assert.equal(call.url, "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/artifacts/9");
   assert.equal(call.options.method, "DELETE");
+});
+
+test("global in-flight count uses only fixed queued and in-progress workflow queries", async () => {
+  const calls = [];
+  const count = await countInFlightRuns("token", async url => {
+    calls.push(url);
+    return Response.json({ total_count: calls.length });
+  });
+  assert.equal(count, 3);
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/workflows/extract-links.yml/runs?event=workflow_dispatch&status=queued&per_page=3",
+    "https://api.github.com/repos/nowimhere3/FloppyDisk/actions/workflows/extract-links.yml/runs?event=workflow_dispatch&status=in_progress&per_page=3",
+  ]);
 });
 
 test("dispatch refuses a successful response without a usable workflow run id", async () => {

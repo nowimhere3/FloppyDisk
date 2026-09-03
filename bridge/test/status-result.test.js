@@ -14,7 +14,7 @@ async function token(options = {}) {
 }
 
 function get(path, jobToken) {
-  const headers = { "X-FloppyDisk-Dev-Key": ENV.FLOPPYDISK_DEV_KEY };
+  const headers = {};
   if (jobToken !== undefined) headers.Authorization = `Bearer ${jobToken}`;
   return new Request(`https://worker.example${path}`, { headers });
 }
@@ -65,7 +65,7 @@ test("pending result does not attempt artifact download", async () => {
   });
   const response = await worker.fetch(get("/result", await token()), ENV);
   assert.equal(response.status, 409);
-  assert.deepEqual(await response.json(), { error: "not ready" });
+  assert.deepEqual(await response.json(), { error: "Your links are not ready yet." });
   assert.equal(downloads, 0);
 });
 
@@ -77,7 +77,7 @@ test("failed completed result does not return or download artifact contents", as
   });
   const response = await worker.fetch(get("/result", await token()), ENV);
   assert.equal(response.status, 409);
-  assert.deepEqual(await response.json(), { error: "job failed" });
+  assert.deepEqual(await response.json(), { error: "FloppyDisk could not complete this job." });
   assert.equal(downloads, 0);
 });
 

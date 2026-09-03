@@ -55,6 +55,19 @@ export async function getWorkflowRun(githubToken, runId, fetchImpl = fetch) {
   throw new Error("unexpected workflow status");
 }
 
+export async function countInFlightRuns(githubToken, fetchImpl = fetch) {
+  let total = 0;
+  for (const status of ["queued", "in_progress"]) {
+    const url = `${DISPATCH_URL.replace("/dispatches", "/runs")}?event=workflow_dispatch&status=${status}&per_page=3`;
+    const response = await githubFetch(url, githubToken, {}, fetchImpl);
+    const body = await response.json();
+    if (!Number.isInteger(body?.total_count) || body.total_count < 0) throw new Error("invalid run count");
+    total += body.total_count;
+    if (total >= 3) return total;
+  }
+  return total;
+}
+
 export async function downloadResultArtifact(githubToken, runId, fetchImpl = fetch) {
   const listing = await githubFetch(`${RUNS_URL}/${runId}/artifacts?per_page=100`, githubToken, {}, fetchImpl);
   const body = await listing.json();

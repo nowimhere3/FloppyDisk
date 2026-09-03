@@ -2,5 +2,17 @@ name = "floppydisk-trigger-bridge"
 main = "src/index.js"
 compatibility_date = "2026-09-02"
 
-# GITHUB_TOKEN, FLOPPYDISK_CAPABILITY_SECRET, and FLOPPYDISK_DEV_KEY are
-# Worker secrets. Configure them with `wrangler secret put`; never put values here.
+[vars]
+FRONTEND_ORIGIN = "https://nowimhere3.github.io"
+
+[[ratelimits]]
+name = "SUBMISSION_RATE_LIMITER"
+namespace_id = "2001"
+
+  [ratelimits.simple]
+  limit = 2
+  period = 60
+
+# GITHUB_TOKEN and FLOPPYDISK_CAPABILITY_SECRET are Worker secrets.
+# Configure them with `wrangler secret put`; never put values here.
+# The retired FLOPPYDISK_DEV_KEY binding may be removed by the Human after acceptance.
