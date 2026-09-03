@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createWorker } from "../src/index.js";
 import { verifyCapability } from "../src/capability.js";
+import { GitHubDispatchError } from "../src/github.js";
 
 const ENV = {
   GITHUB_TOKEN: "test-only server GitHub token",
@@ -42,8 +43,23 @@ test("correct key dispatches server-side and returns only the capability contrac
 });
 
 test("raw GitHub failures and stack traces are not returned", async () => {
-  const worker = createWorker({ dispatch: async () => { throw new Error("sensitive raw response"); } });
-  const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY), ENV);
-  assert.equal(response.status, 502);
-  assert.deepEqual(await response.json(), { error: "request failed" });
+  const originalError = console.error;
+  const diagnostics = [];
+  console.error = (...values) => diagnostics.push(values);
+  try {
+    const worker = createWorker({
+      dispatch: async () => { throw new GitHubDispatchError(403, "SAFE456", "Resource not accessible"); },
+    });
+    const response = await worker.fetch(request(ENV.FLOPPYDISK_DEV_KEY), ENV);
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), { error: "request failed" });
+    assert.deepEqual(diagnostics, [["github_dispatch_failed", {
+      upstreamStatus: 403,
+      requestId: "SAFE456",
+      category: "Resource not accessible",
+    }]]);
+    assert.equal(JSON.stringify(diagnostics).includes(ENV.GITHUB_TOKEN), false);
+  } finally {
+    console.error = originalError;
+  }
 });

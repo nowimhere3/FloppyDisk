@@ -21,3 +21,19 @@ test("dispatch refuses a successful response without a usable workflow run id", 
     GitHubDispatchError,
   );
 });
+
+test("dispatch failure retains only sanitized upstream diagnostics", async () => {
+  await assert.rejects(
+    dispatchWorkflow("token", async () => new Response(
+      JSON.stringify({ message: "Bad credentials https://docs.github.com/private" }),
+      { status: 401, headers: { "x-github-request-id": "SAFE123" } },
+    )),
+    error => {
+      assert.equal(error.status, 401);
+      assert.equal(error.requestId, "SAFE123");
+      assert.equal(error.category, "Bad credentials [url removed]");
+      assert.equal(JSON.stringify(error).includes("token"), false);
+      return true;
+    },
+  );
+});

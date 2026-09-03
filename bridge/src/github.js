@@ -15,12 +15,16 @@ export async function dispatchWorkflow(githubToken, fetchImpl = fetch) {
   });
 
   if (!response.ok) {
-    throw new GitHubDispatchError(response.status);
+    throw new GitHubDispatchError(
+      response.status,
+      response.headers.get("x-github-request-id"),
+      await sanitizedGitHubMessage(response),
+    );
   }
 
   const details = await response.json();
   if (!isUsableRunId(details?.workflow_run_id)) {
-    throw new GitHubDispatchError(response.status, "missing workflow run id");
+    throw new GitHubDispatchError(response.status, response.headers.get("x-github-request-id"), "missing workflow run id");
   }
   return String(details.workflow_run_id);
 }
@@ -31,9 +35,21 @@ function isUsableRunId(value) {
 }
 
 export class GitHubDispatchError extends Error {
-  constructor(status, reason = "dispatch failed") {
-    super(reason);
+  constructor(status, requestId = null, category = "dispatch failed") {
+    super(category);
     this.name = "GitHubDispatchError";
     this.status = status;
+    this.requestId = requestId;
+    this.category = category;
+  }
+}
+
+async function sanitizedGitHubMessage(response) {
+  try {
+    const body = await response.json();
+    if (typeof body?.message !== "string") return "github error";
+    return body.message.replace(/https?:\/\/\S+/gi, "[url removed]").slice(0, 160);
+  } catch {
+    return "github error";
   }
 }

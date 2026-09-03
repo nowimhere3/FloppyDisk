@@ -1,5 +1,5 @@
 import { createCapability } from "./capability.js";
-import { dispatchWorkflow } from "./github.js";
+import { dispatchWorkflow, GitHubDispatchError } from "./github.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 
@@ -24,7 +24,16 @@ export function createWorker({ dispatch = dispatchWorkflow } = {}) {
         const runId = await dispatch(env.GITHUB_TOKEN);
         const result = await createCapability(runId, env.FLOPPYDISK_CAPABILITY_SECRET);
         return new Response(JSON.stringify(result), { status: 200, headers: JSON_HEADERS });
-      } catch {
+      } catch (error) {
+        if (error instanceof GitHubDispatchError) {
+          console.error("github_dispatch_failed", {
+            upstreamStatus: error.status,
+            requestId: error.requestId,
+            category: error.category,
+          });
+        } else {
+          console.error("bridge_operation_failed", { category: error?.name ?? "unknown" });
+        }
         return jsonError(502);
       }
     },
